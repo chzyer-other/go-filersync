@@ -9,6 +9,7 @@ import (
 var _ = os.Remove
 
 func TestUpgrade(t *testing.T) {
+	UpgradeInterval = 100 * time.Millisecond
 	tmpdir, err := ioutil.TempDir("/tmp", "filersync")
 	if err != nil { t.Fatal(err) }
 	defer os.RemoveAll(tmpdir)
@@ -24,7 +25,7 @@ func TestUpgrade(t *testing.T) {
 			t.Fatal("result not excepted", a)
 		}
 	}
-	time.Sleep(time.Second + 100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	select {
 	case <-time.After(100*time.Millisecond):
@@ -35,10 +36,10 @@ func TestUpgrade(t *testing.T) {
 	err = ioutil.WriteFile(tmpdir + "/a.log-131", []byte("a"), 0666)
 	if err != nil { t.Fatal(err) }
 
-	time.Sleep(time.Second + 100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	select {
-	case <-time.After(time.Millisecond):
+	case <-time.After(100*time.Millisecond):
 		t.Fatal("timeout")
 	case a := <- ch:
 		if len(a) != 2 {

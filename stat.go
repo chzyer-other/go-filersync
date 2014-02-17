@@ -21,6 +21,14 @@ func (s *Stat) MAfter(ns *Stat) bool {
 	return s.Mtime.After(ns.Mtime)
 }
 
+func (s *Stat) SameIno(ns *Stat) bool {
+	return s.Ino == ns.Ino
+}
+
+func (s *Stat) SamePath(ns *Stat) bool {
+	return s.Path == ns.Path
+}
+
 func (s *Stat) Inode() uint64 { return s.Ino }
 
 type StatSlice []*Stat

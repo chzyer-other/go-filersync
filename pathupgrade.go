@@ -4,6 +4,10 @@ import (
 	"time"
 )
 
+var (
+	UpgradeInterval = time.Second
+)
+
 func KeepReturnNewPath(path string) (pathchan chan []string) {
 	pathchan = make(chan []string)
 	go keepReturnNewpath(path, pathchan)
@@ -17,7 +21,7 @@ func keepReturnNewpath(path string, pathchan chan []string) {
 		if fileListChanged(fileList) {
 			pathchan <- fileList
 		}
-		time.Sleep(time.Second)
+		time.Sleep(UpgradeInterval)
 	}
 }
 

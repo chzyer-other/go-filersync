@@ -34,13 +34,14 @@ func (s SameCounter) Set(idx int, str string) (exist bool) {
 }
 func (s SameCounter) Max() (string) {
 	max := 0
-	idx := 0
+	idx := -1
 	for i, a := range s {
 		if a.Count > max {
 			max = a.Count
 			idx = i
 		}
 	}
+	if idx < 0 { return "" }
 	return s[idx].Content
 }
 
@@ -77,6 +78,8 @@ func SelectPath(path string) (filelist []string, err error) {
 		exist := fileList.Set(length, filepath)
 		if ! exist { length ++ }
 	}
+	fileList = fileList[:length]
+	if length == 0 { return }
 
 	regexpPath, err := regexp.Compile(fileList.Max())
 	if err != nil { return }
