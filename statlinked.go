@@ -10,6 +10,7 @@ type StatLinked struct {
 	stat StatSlice
 	statL sync.RWMutex
 	addfunc func()
+	increasefunc func(*Stat, int64)
 }
 
 func NewStatLinked(paths []string) (sl *StatLinked, err error) {
@@ -18,6 +19,10 @@ func NewStatLinked(paths []string) (sl *StatLinked, err error) {
 	err = sl.UpdatePath(paths)
 	if err != nil { return }
 	return
+}
+
+func (sl *StatLinked) SetOnSizeIncrease(f func(*Stat, int64)) {
+	sl.increasefunc = f
 }
 
 func (sl *StatLinked) search(s *Stat) (idx int) {
@@ -33,6 +38,11 @@ func (sl *StatLinked) Search(s *Stat) (idx int) {
 	return sl.search(s)
 }
 
+type Increase struct {
+	stat *Stat
+	size int64
+}
+
 func (sl *StatLinked) UpdatePath(paths []string) (err error) {
 	stats := make(StatSlice, len(paths))
 	for idx, path := range paths {
@@ -41,10 +51,16 @@ func (sl *StatLinked) UpdatePath(paths []string) (err error) {
 	}
 
 	needNotify := false
+	increase := make([]Increase, len(stats))
+	length := 0
 	sl.statL.Lock()
 	for _, s := range stats {
 		idx := sl.search(s)
 		if idx >= 0 {
+			olds := sl.stat[idx]
+			if olds.Size < s.Size {
+				increase[length] = Increase{s, s.Size}
+			}
 			sl.stat[idx] = s
 		} else {
 			sl.stat = append(sl.stat, s)
@@ -53,6 +69,11 @@ func (sl *StatLinked) UpdatePath(paths []string) (err error) {
 	}
 	sl.stat.Sort()
 	sl.statL.Unlock()
+	if length > 0 && sl.increasefunc != nil {
+		for _, v := range increase[:length] {
+			sl.increasefunc(v.stat, v.size)
+		}
+	}
 
 	if needNotify && sl.addfunc != nil {
 		sl.addfunc()
@@ -62,6 +83,18 @@ func (sl *StatLinked) UpdatePath(paths []string) (err error) {
 
 func (sl *StatLinked) SetOnAdded(f func()) {
 	sl.addfunc = f
+}
+
+func (sl *StatLinked) Find(s *Stat) (ns *Stat, ok bool) {
+	last, err := sl.Last()
+	if err != nil { return }
+	if s.SameIno(last) { return last, true }
+
+	for ! s.SameIno(last) {
+		last, err = sl.Prev(last)
+		if err != nil { return }
+	}
+	return last, true
 }
 
 func (sl *StatLinked) Prev(s *Stat) (ns *Stat, err error) {

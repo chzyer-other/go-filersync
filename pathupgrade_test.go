@@ -7,10 +7,12 @@ import (
 	"io/ioutil"
 )
 var _ = os.Remove
+func init() {
+	UpgradeInterval = 100 * time.Millisecond
+}
 
 func TestUpgrade(t *testing.T) {
-	UpgradeInterval = 100 * time.Millisecond
-	tmpdir, err := ioutil.TempDir("/tmp", "filersync")
+	tmpdir, err := ioutil.TempDir("/tmp", "filersync-upgrade")
 	if err != nil { t.Fatal(err) }
 	defer os.RemoveAll(tmpdir)
 
@@ -29,8 +31,8 @@ func TestUpgrade(t *testing.T) {
 
 	select {
 	case <-time.After(100*time.Millisecond):
-	case <- ch:
-		t.Fatal("may not return data")
+	case a := <- ch:
+		t.Fatal("may not return data", a)
 	}
 
 	err = ioutil.WriteFile(tmpdir + "/a.log-131", []byte("a"), 0666)

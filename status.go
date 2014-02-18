@@ -6,7 +6,7 @@ import (
 
 type Status struct {
 	sl *StatLinked
-	offset *Offset
+	oset *Offset
 	fileList map[uint64] *File
 	notifyChange func()
 }
@@ -16,9 +16,10 @@ func NewStatus(path []string) (s *Status, err error) {
 	if err != nil { return }
 	s = &Status {
 		sl: sl,
-		offset: NewOffset(),
+		oset: NewOffset(),
 	}
 	sl.SetOnAdded(s.onStatLinkedAdded)
+	// sl.SetOnSizeIncrease(s.onStatLinkedSizeIncrease)
 	return
 }
 
@@ -30,56 +31,90 @@ func (s *Status) Store() {
 	return
 }
 
-func (s *Status) getFile(stat *Stat) (f *File, offset int64, err error) {
+func (s *Status) getFile(stat *Stat) (f *File, err error) {
 	f, ok := s.fileList[stat.Inode()]
 	if ! ok {
 		f, err = NewFile(stat)
 	}
-	offset, ok = s.offset.GetStatOffset(stat)
+	return
+}
+
+func (s *Status) Offset(f *File) (offset int64) {
+	return s.offset(f.Stat)
+}
+
+func (s *Status) offset(stat *Stat) (offset int64) {
+	offset, ok := s.oset.GetStatOffset(stat)
 	if ! ok {
-		s.offset.SetStatOffset(stat, 0)
+		s.oset.SetStatOffset(stat, 0)
 	}
 	return
 }
 
-func (s *Status) Offset(f *File) (offset int64, err error) {
-	stat := f.Stat
-	_, offset, err = s.getFile(stat)
-	return
-}
-
-func (s *Status) Last() (f *File, offset int64, err error) {
+func (s *Status) Last() (f *File, err error) {
 	stat, err := s.sl.Last()
 	if err != nil { return }
-	f, offset, err = s.getFile(stat)
+	f, err = s.getFile(stat)
 	return
 }
 
-func (s *Status) Next(f *File) (nf *File, offset int64, err error) {
+func (s *Status) Next(f *File) (nf *File, err error) {
 	ns, err := s.sl.Next(f.Stat)
 	if err != nil { return }
-	nf, offset, err = s.getFile(ns)
+	nf, err = s.getFile(ns)
 	return
 }
 
 func (s *Status) IsFinish(f *File) (yes bool) {
-	return s.offset.IsFinish(f.Stat)
+	s.Sync(f)
+	return s.isFinish(f.Stat)
 }
 
-func (s *Status) Prev(f *File) (nf *File, offset int64, err error) {
+func (s *Status) isFinish(ns *Stat) (yes bool) {
+	ts, ok := s.sl.Find(ns)
+	if ok {
+		ns.Size = ts.Size
+	}
+	offset := s.offset(ns)
+	return offset >= ns.Size
+}
+
+func (s *Status) Sync(f *File) (ok bool) {
+	stat, ok := s.sl.Find(f.Stat)
+	if ! ok { return }
+	f.Stat = stat
+	return true
+}
+
+func (s *Status) Prev(f *File) (nf *File, err error) {
 	ps, err := s.sl.Prev(f.Stat)
 	if err != nil { return }
-	nf, offset, err = s.getFile(ps)
+	nf, err = s.getFile(ps)
 	return
 }
 
 func (s *Status) UpdateOffset(f *File, offset int64) {
-	s.offset.SetStatOffset(f.Stat, offset)
-	if s.IsFinish(f) {
+	s.updateStatOffset(f.Stat, offset)
+}
+
+func (s *Status) updateStatOffset(ns *Stat, offset int64) {
+	s.oset.SetStatOffset(ns, offset)
+	if s.isFinish(ns) {
 		if s.notifyChange == nil { return }
 		s.notifyChange()
 	}
-	return
+}
+
+func (s *Status) AddOffset(f *File, offset int64) {
+	s.addOffset(f.Stat, offset)
+}
+
+func (s *Status) addOffset(ns *Stat, offset int64) {
+	s.oset.AddStatOffset(ns, offset)
+	if s.isFinish(ns) {
+		if s.notifyChange == nil { return }
+		s.notifyChange()
+	}
 }
 
 func (s *Status) UpdatePath(path []string) {

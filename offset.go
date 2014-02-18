@@ -50,6 +50,7 @@ func (o *Offset) SetStatOffset(f *Stat, offset int64) {
 
 	o.l.Lock()
 	defer o.l.Unlock()
+	if offset > f.Size { offset = f.Size }
 	o.setOffset(ino, offset, f.Size)
 }
 

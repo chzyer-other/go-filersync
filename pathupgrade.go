@@ -15,31 +15,31 @@ func KeepReturnNewPath(path string) (pathchan chan []string) {
 }
 
 func keepReturnNewpath(path string, pathchan chan []string) {
+	var tmpFileList []string
 	for {
 		fileList, err := SelectPath(path)
 		if err != nil { panic(err) }
-		if fileListChanged(fileList) {
+		if fileListChanged(fileList, &tmpFileList) {
 			pathchan <- fileList
 		}
 		time.Sleep(UpgradeInterval)
 	}
 }
 
-var tmpFileList []string
-func fileListChanged(fileList []string) bool {
+func fileListChanged(fileList []string, tmpFileList *[]string) bool {
 	if tmpFileList == nil {
-		tmpFileList = fileList
+		*tmpFileList = fileList
 		return true
 	}
 
-	if len(tmpFileList) != len(fileList) {
-		tmpFileList = fileList
+	if len(*tmpFileList) != len(fileList) {
+		*tmpFileList = fileList
 		return true
 	}
 
-	for _, f := range tmpFileList {
+	for _, f := range *tmpFileList {
 		if ! inArray(f, fileList) {
-			tmpFileList = fileList
+			*tmpFileList = fileList
 			return true
 		}
 	}
